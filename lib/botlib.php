@@ -56,7 +56,7 @@ function echom ($skey) {
 
 function prediction() {
 			global $client,$event;
-			$json = file_get_contents("https://script.google.com/macros/s/AKfycbdfvdfdfvfdJhRFUnApa01lskpRLpkPyD7pbkQ2Gx/exec");
+			$json = file_get_contents("https://script.google.com/macros/s/AKfycbdJhRFUnApa01lskpRLpkPyD7pbkQ2Gx/exec");
             $data = json_decode($json, true);
             $result = array();
       //      $findex=fopen("last.txt","w") ; // 寫上
@@ -94,6 +94,141 @@ function prediction() {
 
 	           
                }
+
+function weather($mtext) {  //只取第一筆資料
+			global $client,$event;
+			$array=explode('*',$mtext);
+			$keyword = $array[1];
+			if($keyword  === '台北市') $keyword = '臺北市';
+			$json = file_get_contents("https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=CWB-BCC30670-309F-4B91-8262-085A8DF0E6A0&locationName=".$keyword);
+            $data = json_decode($json, true);
+			$wheatercode = $data['records']['location'][0]['weatherElement'][0]['time'][0]['parameter']['parameterValue']; // 1= sunny  2~7 =cloudy	else rain default
+			$wheater = $data['records']['location'][0]['weatherElement'][0]['time'][0]['parameter']['parameterName']; // 1= sunny  2~7 =cloudy	else rain default
+			$rain = $data['records']['location'][0]['weatherElement'][1]['time'][0]['parameter']['parameterName']; // 降雨機率
+			$mint = $data['records']['location'][0]['weatherElement'][2]['time'][0]['parameter']['parameterName']; // 最小溫度
+			$ci = $data['records']['location'][0]['weatherElement'][3]['time'][0]['parameter']['parameterName']; // 敘述
+			$maxt = $data['records']['location'][0]['weatherElement'][4]['time'][0]['parameter']['parameterName']; // 最big溫度
+			$city = $data['records']['location'][0]['locationName']; // city
+			$img = 'https://domidomi.tk/004/img/rain.png';
+			if($wheatercode === '1') $img = 'https://domidomi.tk/004/img/sunny.png';
+			if($wheatercode > 1 and $wheatercode < 8) $img = 'https://domidomi.tk/004/img/suncloudy.png';
+			logger($tt);
+			$result = array(
+  'type'=> 'bubble',
+  'direction'=> 'ltr',
+  'header'=> array(
+    'type'=> 'box',
+    'layout'=> 'horizontal',
+    'contents'=> array(
+      array(
+        'type'=> 'text',
+        'text'=> '本日天氣',
+        'align'=> 'start',
+		"contents"=> array(
+          array(
+            "type"=> "span",
+            "text"=> "本日天氣",
+            "size"=> "xxl"
+          )
+        )
+
+      ),
+	  array(
+        "type"=> "text",
+        "text"=> $city ,
+        "size"=> "xxl",
+        "align"=> "end",
+        "contents"=> array(
+          array(
+            "type"=> "span",
+            "text"=> $city ,
+            "weight"=> "bold",
+            "style"=> "normal"
+          )
+        )
+      )
+    )
+  ),
+  'hero'=> array(
+    'type'=> 'image',
+    'url'=> $img,
+    'margin'=> 'xl',
+    'gravity'=> 'top',
+    'size'=> 'xxl',
+    'aspectRatio'=> '1.51:1',
+    'aspectMode'=> 'fit',
+    'backgroundColor'=> '#FFFFFFFF'
+  ),
+  'body'=> array(
+    'type'=> 'box',
+    'layout'=> 'vertical',
+    'contents'=> array(
+      array(
+        'type'=> 'text',
+        'text'=> $wheater.' '.$ci,
+        'align'=> 'center',
+
+      )
+    )
+  ),
+  'footer'=> array(
+    'type'=> 'box',
+    'layout'=> 'vertical',
+    'contents'=> array(
+      array(
+        'type'=> 'text',
+        'text'=> $mint.'°C~'.$maxt.'°C',
+        'size'=> 'xxl',
+        'align'=> 'center',
+        'gravity'=> 'center',
+
+      ),
+      array(
+        'type'=> 'text',
+        'text'=> '降雨'.$rain.'%',
+        'size'=> '3xl',
+		'align'=> 'center',
+        'gravity'=> 'center',
+      ),
+	  array(
+        "type"=> "text",
+        "text"=> "hello, world",
+        "contents"=> array(
+          array(
+            "type"=> "span",
+            "text"=> "資料來源 :"
+          ),
+          array(
+            "type"=> "span",
+            "text"=> "中央氣象局",
+            "color"=> "#FF6161FF"
+          )
+        )
+      )
+    )
+  )
+);
+               	$client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+            array(
+                'type' => 'flex', // 訊息類型 (模板)
+                'altText' => 'flex', // 替代文字
+                'contents' => $result
+            )
+            
+        )
+                 ));
+               	   	
+
+	           
+               }
+
+
+
+
+
+
 
 
 function learn($mtext) {
@@ -166,17 +301,145 @@ foreach ($prize3 as $gId => $prizes) {
     } 
 }
 }
+$sp = strval($result[1]);
+$ssr = strval($result[2]);
+$sr = strval($result[3]);
+$r = strval($result[4]);
+$tt = array(
+  "type"=> "bubble",
+  "direction"=> "ltr",
+  "header"=> array(
+    "type"=> "box",
+    "layout"=> "vertical",
+    "contents"=> array(
+      array(
+        "type"=> "text",
+        "text"=> "抽卡結果",
+        "weight"=> "bold",
+        "size"=> "4xl",
+        "color"=> "#000000FF",
+        "align"=> "center",
+        "contents"=> array()
+      )
+    )
+  ),
+  "body"=> array(
+    "type"=> "box",
+    "layout"=> "vertical",
+    "contents"=> array(
+      array(
+        "type"=> "box",
+        "layout"=> "horizontal",
+        "contents"=> array(
+          array(
+            "type"=> "image",
+            "url"=> "https://i.imgur.com/zgs011N.png"
+          ),
+          array(
+            "type"=> "text",
+            "text"=> $sp,
+            "size"=> "lg",
+            "color"=> "#FF0000FF",
+            "align"=> "end",
+            "gravity"=> "center",
+            "contents"=> array(
+              array(
+                "type"=> "span",
+                "text"=> $sp."顆",
+              )
+            )
+          )
+        )
+      ),
+      array(
+        "type"=> "box",
+        "layout"=> "horizontal",
+        "contents"=> array(
+          array(
+            "type"=> "image",
+            "url"=> "https://i.imgur.com/RxcVOh1.png"
+          ),
+          array(
+            "type"=> "text",
+            "text"=> $ssr,
+            "align"=> "end",
+            "gravity"=> "center",
+            "contents"=> array(
+              array(
+                "type"=> "span",
+                "text"=> $ssr,
+              )
+            )
+          )
+        )
+      ),
+      array(
+        "type"=> "box",
+        "layout"=> "horizontal",
+        "contents"=> array(
+          array(
+            "type"=> "image",
+            "url"=> "https://i.imgur.com/OqDAdAh.png"
+          ),
+          array(
+            "type"=> "text",
+            "text"=> $sr,
+            "align"=> "end",
+            "gravity"=> "center",
+            "contents"=> array(
+              array(
+                "type"=> "span",
+                "text"=> $sr,
+              )
+            )
+          )
+        )
+      ),
+      array(
+        "type"=> "box",
+        "layout"=> "horizontal",
+        "contents"=> array(
+          array(
+            "type"=> "image",
+            "url"=> "https://i.imgur.com/m12Itau.png"
+          ),
+          array(
+            "type"=> "text",
+            "text"=> $r,
+            "align"=> "end",
+            "gravity"=> "center",
+            "contents"=> array(
+              array(
+                "type"=> "span",
+                "text"=> $r,
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
+  "footer"=> array(
+    "type"=> "box",
+    "layout"=> "horizontal",
+    "contents"=> array(
+      array(
+        "type"=> "filler"
+      )
+    )
+  )
+);
+
 $client->replyMessage(array(
                      'replyToken' => $event['replyToken'],
                      'messages' => array(
-               array(
-                'type' => 'text', // 訊息類型 (文字)
-                'text' => '比列:'.$result[1].'
-SSR:'.$result[2].'
-SR:'.$result[3].'
-R:'.$result[4],
-                   )
-                )
+            array(
+                'type' => 'flex', // 訊息類型 (模板)
+                'altText' => 'flex', // 替代文字
+                'contents' => $tt
+            )
+            
+        )
                  ));
 
 	
