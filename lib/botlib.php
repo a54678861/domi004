@@ -7,10 +7,36 @@ function logger($vv) {
    fwrite($fp, date('Y-m-d G:i:s').'  '.$ip.' '.$vv."\n");
    fclose($fp);
   }
+function showhelp() {
+	global $client,$event;
+    $client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+               array(
+                'type' => 'text', // 訊息類型 (文字)
+                'text' => '目前有的指令如下:
+!+你要的關鍵字 EX !吃啥
+抽卡*機率*次數 EX抽卡*3%*300 注意 機率只有3%以及6%
+學;關鍵字;回答 EX 學;kip;會吃屎\
+清單;關鍵字  EX 清單;kip
+刪除;編號  EX 刪除;64   備註:編號可以在清單查到
+天氣;城市 EX天氣;台北市  備註:國外不行'
+                   )
+                )
+                 ));
+               	   	
 
+	           
+               }
 function echom ($skey) {
 			global $client,$event,$con;
+			$x = luis($skey);
+            $y = json_decode($x, true);
+			$vv3 = $y['topScoringIntent'];
+            $vv4 = $vv3['intent'];
+            $vv5 = $vv3['score'];
             $results = $con->query("select * from echo_list where UPPER(keyword) = UPPER('$skey')");
+			if ($vv4 == '食物' and $vv5 > 0.5) $results = $con->query("select * from echo_list where UPPER(category) = UPPER('$vv4')");
 		$result = array();
 			while ($row = $results->fetchArray(SQLITE3_ASSOC)){
 			      $keyword=$row['keyword'];
@@ -56,7 +82,7 @@ function echom ($skey) {
 
 function prediction() {
 			global $client,$event;
-			$json = file_get_contents("https://script.google.com/macros/s/AKfycbdJhRFUnApa01lskpRLpkPyD7pbkQ2Gx/exec");
+			$json = file_get_contents("https://script.google.com/macros/s/AKfycbw7_1wEvT-5Co-LoRjcozJhRFUnApa01lskpRLpkPyD7pbkQ2Gx/exec");
             $data = json_decode($json, true);
             $result = array();
       //      $findex=fopen("last.txt","w") ; // 寫上
@@ -94,6 +120,66 @@ function prediction() {
 
 	           
                }
+
+function luis($skey) {
+			global $client,$event;
+			$skey2 = rawurlencode($skey);
+			$tt = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/89d84289-3563-4f99-87e9-6655a7cf5092?verbose=true&timezoneOffset=0&subscription-key=c969a9085d2644b0a25a32d1bd0e582c&q='.$skey2;
+			$curl = curl_init(); // 啟動一個CURL會話
+			curl_setopt($curl, CURLOPT_URL, $tt);
+			curl_setopt($curl, CURLOPT_HEADER, 0);
+			curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false); // 跳過證書檢查
+			curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, true);  // 從證書中檢查SSL加密算法是否存在
+			$x = curl_exec($curl);
+			curl_close($curl);
+            return $x;    	   		           
+}
+
+function trash($mtext) {
+			global $client,$event;
+			$array=explode(';',$mtext);
+			$topic = $array[1];
+			$len = $array[2];
+			$len=intval($len); 
+			if($topic == '' or $len == '' ) error('輸入錯誤 請遵照格式 廢;關鍵字;字數');
+			$data = array(
+			"Topic" => $topic,
+			"MinLen" => $len
+						 );
+			$postdata = json_encode($data);
+			$tt = 'https://api.howtobullshit.me/bullshit';
+			$curl = curl_init(); // 啟動一個CURL會話
+			curl_setopt($curl, CURLOPT_URL, $tt);
+			curl_setopt($curl, CURLOPT_POST, 1);
+			curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1); //結果轉為變數
+			curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false); // 跳過證書檢查
+			curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, true);  // 從證書中檢查SSL加密算法是否存在
+			curl_setopt($curl, CURLOPT_POSTFIELDS, $postdata);
+			curl_setopt($curl, CURLOPT_HTTPHEADER, [
+				'Content-Type: application/json',
+				'charset=utf-8'
+				]);
+			$x = curl_exec($curl);
+
+			curl_close($curl);
+			$x = str_replace("&nbsp;", "", $x);
+			$x = str_replace("<br>", "", $x);
+            $client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+               array(
+                'type' => 'text', // 訊息類型 (文字)
+                'text' => $x
+                   )
+                )
+                 ));	           
+}
+
+
+
+
+
 
 function weather($mtext) {  //只取第一筆資料
 			global $client,$event;
@@ -236,17 +322,23 @@ function learn($mtext) {
 			$array=explode(';',$mtext);
 			$keyword = $array[1];
 			$content = $array[2];
+			$x = luis($keyword);
+			if($keyword == '' or $content == '' ) error('沒學到，可能是關鍵字或是內容有空白，或是輸入錯誤');
+            $y = json_decode($x, true);
+			$vv3 = $y['topScoringIntent'];
+            $vv4 = $vv3['intent'];
+            $vv5 = $vv3['score'];
 			if ($content === '圖片'){
 				$img = $array[3];
 				$con->exec("INSERT INTO echo_list (keyword, content,img) VALUES('$keyword', '圖片','$img')");		
 				
 			}else{
-				$con->exec("INSERT INTO echo_list (keyword, content) VALUES('$keyword','$content')");			
-				
-			}
-			
-			
-			
+				if ($vv4 == '食物' and $vv5 > 0.5) {
+					$results = $con->query("INSERT INTO echo_list (keyword, content,category) VALUES('$keyword','$content','$vv4')");
+				}else{
+					$con->exec("INSERT INTO echo_list (keyword, content) VALUES('$keyword','$content')");		
+				}
+			}		
                	$client->replyMessage(array(
                      'replyToken' => $event['replyToken'],
                      'messages' => array(
@@ -264,6 +356,79 @@ function learn($mtext) {
 
 	           
                }
+
+function error($mtext) {
+			global $client,$event,$con;	
+               	$client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+               array(
+                'type' => 'text', // 訊息類型 (文字)
+                'text' => $mtext
+
+                   )
+                )
+                 ));
+             exit();  	   	
+
+	           
+               }
+
+			   
+function listk($mtext) {
+			global $client,$event,$con;
+			$array=explode(';',$mtext);
+			$keyword = $array[1];
+			$results = $con->query("select * from echo_list where UPPER(keyword) = UPPER('$keyword')");
+			$result = '';
+			while ($row = $results->fetchArray(SQLITE3_ASSOC)){
+			      $keyword=$row['keyword'];
+ 				  $content=$row['content'];
+				  $kid=$row['id'];
+ 				  $tt = array($keyword,$content,$kid) ;
+				  $result .= $kid.' '.$keyword.' '.$content.'
+';
+				}
+			
+			
+			
+               	$client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+               array(
+                'type' => 'text', // 訊息類型 (文字)
+                'text' => '關鍵字 '.$keyword.' 結果如下
+'.$result.'
+可以使用 刪除;編號 來進行刪除指令 EX 刪除;105'
+                   )
+                )
+                 ));
+               	   	
+
+	           
+               }	
+			   
+function deletek($mtext) {
+			global $client,$event,$con;
+			$array=explode(';',$mtext);
+			$kid = $array[1];
+			if ($kid == '' or is_numeric($kid) != TRUE ) error('刪除請用編號，可以使用清單找到編號');
+			$con->exec("DELETE FROM echo_list  WHERE id = '$kid'");
+            $client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+               array(
+                'type' => 'text', // 訊息類型 (文字)
+                'text' => 'ok 已經移除編號 '.$kid
+                   )
+                )
+                 ));
+               	   	
+
+	           
+               }			   
+			   
+			   
 function prize($mtext){
 global $client,$event,$con;
 $array=explode('*',$mtext);
@@ -276,8 +441,8 @@ $prize3 = array(
  4 => 82000, 
 );
 $prize6 = array(
- 1 => 3, //specail prize
- 2 => 5997, //SSR
+ 1 => 18, //specail prize
+ 2 => 5982, //SSR
  3 => 15000,//SR 
  4 => 79000, 
 );
@@ -290,7 +455,7 @@ $result = array(
 if ($whitch === '6%') $prize3 = $prize6;
 for ( $i=0 ; $i<$times ; $i++ ) {
 $chance = 100000;
-foreach ($prize3 as $gId => $prizes) {
+foreach ($prize3 as $gId => $prizes) { //如沒有在範圍內 則概率空間減去
     $random = mt_rand(1, $chance);
     if ($random <= $prizes) {
         $result[$gId] += 1;
@@ -311,12 +476,13 @@ $tt = array(
   "header"=> array(
     "type"=> "box",
     "layout"=> "vertical",
+	"height"=> "70px",
     "contents"=> array(
       array(
         "type"=> "text",
         "text"=> "抽卡結果",
         "weight"=> "bold",
-        "size"=> "4xl",
+        "size"=> "xl",
         "color"=> "#000000FF",
         "align"=> "center",
         "contents"=> array()
@@ -326,6 +492,7 @@ $tt = array(
   "body"=> array(
     "type"=> "box",
     "layout"=> "vertical",
+	"height"=> "250px",
     "contents"=> array(
       array(
         "type"=> "box",
@@ -333,7 +500,8 @@ $tt = array(
         "contents"=> array(
           array(
             "type"=> "image",
-            "url"=> "https://i.imgur.com/zgs011N.png"
+            "url"=> "https://i.imgur.com/zgs011N.png",
+			"size"=> "xs",
           ),
           array(
             "type"=> "text",
@@ -357,7 +525,8 @@ $tt = array(
         "contents"=> array(
           array(
             "type"=> "image",
-            "url"=> "https://i.imgur.com/RxcVOh1.png"
+            "url"=> "https://i.imgur.com/RxcVOh1.png",
+			"size"=> "xs",
           ),
           array(
             "type"=> "text",
@@ -379,7 +548,8 @@ $tt = array(
         "contents"=> array(
           array(
             "type"=> "image",
-            "url"=> "https://i.imgur.com/OqDAdAh.png"
+            "url"=> "https://i.imgur.com/OqDAdAh.png",
+			"size"=> "xs",
           ),
           array(
             "type"=> "text",
@@ -401,7 +571,8 @@ $tt = array(
         "contents"=> array(
           array(
             "type"=> "image",
-            "url"=> "https://i.imgur.com/m12Itau.png"
+            "url"=> "https://i.imgur.com/m12Itau.png",
+			"size"=> "xs",
           ),
           array(
             "type"=> "text",

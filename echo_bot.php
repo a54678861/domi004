@@ -18,8 +18,8 @@
 require('LINEBotTiny.php');
 require('lib/botlib.php');
 $con = new SQLite3('sql.db');	
-$channelAccessToken = 'hkwwJ6arj9Biwnxxxxxyf65cTqchC7UUciH6N++PDZ7xatYmKZce3gEsteRkJ+LaJgdB04t89/1O/w1cDnyilFU=';
-$channelSecret = '1caab0fxxxxxxx577173f2f';
+$channelAccessToken = 'hkwwJ6arj9BfkbEkJgNvaidOYU8T2wlgRq5Xnwlz/ZilKvIX3Z3COb8+lCuLnkdN9JzoWnhzGDIy1yf65cTqchC7UUciH6N++PDZ7xatYmKZce3gEsteRkJ+LaJgdB04t89/1O/w1cDnyilFU=';
+$channelSecret = '1caab0f5aa76577173f2f';
 $client = new LINEBotTiny($channelAccessToken, $channelSecret);
 foreach ($client->parseEvents() as $event) {
 	 $source = 	$event['source'];
@@ -33,8 +33,14 @@ foreach ($client->parseEvents() as $event) {
               $skey = substr($mtext,1);
 			  
 			  if ($mtext == '個榜' or $mtext == '個綁' or $mtext == '各綁' or $mtext == '個排' or $mtext == '各排' ) prediction($skey);
+			  if ($mtext == 'help') showhelp();
 			  if (substr($mtext,0,6) == '抽卡' ) prize($mtext);
-			  if (substr($mtext,0,3) == '學') learn($mtext);
+			  if (substr($mtext,0,4) == '學;') learn($mtext);
+			  if (substr($mtext,0,4) == '廢;') trash($mtext);
+			  if (substr($mtext,0,7) == '清單;') listk($mtext);
+			  if (substr($mtext,0,7) == '刪除;') deletek($mtext);
+			  if (substr($mtext,0,6) == '天氣') weather($mtext);
+			  
 			  if (substr($mtext,0,1) == '!' or substr($mtext,0,) == '！') echom($skey);
               ctrlcv ($mtext); //借來的跟風喊話
               
