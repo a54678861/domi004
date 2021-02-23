@@ -14,3 +14,5 @@ php製作的line bot 附帶一些娛樂群組的功能<br>
 # 天氣查詢
 ![image](https://i.imgur.com/vFJM3Eu.png)
 
+# 趣味戰鬥，增進感情
+![image](https://i.imgur.com/UhUjtIb.png)

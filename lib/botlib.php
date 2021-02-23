@@ -1,4 +1,5 @@
 <?php
+require('skill.php');
 function logger($vv) {
    $ho = $_SERVER['SERVER_NAME']."-".date('Y-m');
    $ho = date('Y-m-d');
@@ -7,6 +8,24 @@ function logger($vv) {
    fwrite($fp, date('Y-m-d G:i:s').'  '.$ip.' '.$vv."\n");
    fclose($fp);
   }
+  
+class player
+{
+    // property declaration
+    public $hp = 7500;
+	public $atk = 300;
+	public $name = '';
+	public $block = 15;
+	public $crit = 20;
+    // method declaration
+    public function attack() {
+        $result = '對enemy造成300點傷害！';
+		return $result;
+    }
+}
+  
+  
+  
 function showhelp() {
 	global $client,$event;
     $client->replyMessage(array(
@@ -37,7 +56,7 @@ function echom ($skey) {
             $vv5 = $vv3['score'];
             $results = $con->query("select * from echo_list where UPPER(keyword) = UPPER('$skey')");
 			if ($vv4 == '食物' and $vv5 > 0.5) $results = $con->query("select * from echo_list where UPPER(category) = UPPER('$vv4')");
-		$result = array();
+			$result = array();
 			while ($row = $results->fetchArray(SQLITE3_ASSOC)){
 			      $keyword=$row['keyword'];
  				  $content=$row['content'];
@@ -177,7 +196,26 @@ function trash($mtext) {
 }
 
 
+function getdisplayname(){ //取得群組內的displayname
+			  global $client,$event,$groupid,$user,$channelAccessToken;
+			  $tt = 'https://api.line.me/v2/bot/group/'.$groupid.'/member/'.$user;
+			  $curl = curl_init(); // 啟動一個CURL會話
+			  curl_setopt($curl, CURLOPT_URL, $tt);
+			  curl_setopt($curl, CURLOPT_HTTPGET, 1);
+			  curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1); //結果轉為變數
+			  curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false); // 跳過證書檢查
+			  curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, true);  // 從證書中檢查SSL加密算法是否存在
+			  curl_setopt($curl, CURLOPT_HTTPHEADER, [
+				'Content-Type: application/json',
+				'Authorization: Bearer '.$channelAccessToken
+				]);
+		      $x = curl_exec($curl);
 
+			 curl_close($curl);
+             $y = json_decode($x);
+             $vv3 = $y->displayName;  
+			 return $vv3;
+}
 
 
 
@@ -328,15 +366,16 @@ function learn($mtext) {
 			$vv3 = $y['topScoringIntent'];
             $vv4 = $vv3['intent'];
             $vv5 = $vv3['score'];
+			$who = getdisplayname();
 			if ($content === '圖片'){
 				$img = $array[3];
-				$con->exec("INSERT INTO echo_list (keyword, content,img) VALUES('$keyword', '圖片','$img')");		
+				$con->exec("INSERT INTO echo_list (keyword, content,img,who) VALUES('$keyword', '圖片','$img','$who')");		
 				
 			}else{
 				if ($vv4 == '食物' and $vv5 > 0.5) {
-					$results = $con->query("INSERT INTO echo_list (keyword, content,category) VALUES('$keyword','$content','$vv4')");
+					$results = $con->query("INSERT INTO echo_list (keyword, content,category,who) VALUES('$keyword','$content','$vv4','$who')");
 				}else{
-					$con->exec("INSERT INTO echo_list (keyword, content) VALUES('$keyword','$content')");		
+					$con->exec("INSERT INTO echo_list (keyword, content,who) VALUES('$keyword','$content','$who')");		
 				}
 			}		
                	$client->replyMessage(array(
@@ -385,8 +424,9 @@ function listk($mtext) {
 			      $keyword=$row['keyword'];
  				  $content=$row['content'];
 				  $kid=$row['id'];
+				  $who=$row['who'];
  				  $tt = array($keyword,$content,$kid) ;
-				  $result .= $kid.' '.$keyword.' '.$content.'
+				  $result .= $kid.' '.$keyword.' '.$content.' '.$who.'
 ';
 				}
 			
@@ -648,7 +688,106 @@ function echoed ($skey) {
 	          	}
 	          exit();           
                }   
+function battle ($mtext) {
+			  global $client,$event;		
+			  $array=explode(';',$mtext);
+			  $aname = getdisplayname();
+			  $bname = $array[1];
+			  $player1 = new player();
+			  $player1->name = $aname;
+			  $player2 = new player();
+			  $player2->name = $bname;
+			  $result = duel($player1,$player2);
+	          $client->replyMessage(array(
+                     'replyToken' => $event['replyToken'],
+                     'messages' => array(
+               array(
+                'type' => 'text', // 訊息類型 (文字)
+                'text' => $result
+                   )
+                )
+                 ));          
+               }   
 
+function duel ($player1,$player2) {
+		global $con;	
+		$result = '戰鬥開始
+';
+		$results = $con->query("select * from skill ORDER BY active ASC");
+		$skill_array = array();
+        while ($row = $results->fetchArray(SQLITE3_ASSOC)){
+			$skill_name=$row['skill_name'];
+			$active=$row['active'];
+			$tt = array($skill_name,$active) ;
+  		array_push($skill_array,$tt);
+				}
+		for ($i=0;$i<300;$i++){
+			$result .= action($player1,$player2,$skill_array);
+			if($player2->hp <= 0 ) {
+				$result .= $player2->name.'已經死亡，'.$player1->name.'還剩下'.$player1->hp.' hp';
+				 break;
+			}
+			$result .= action($player2,$player1,$skill_array);
+			if($player1->hp <= 0 ) {
+				$result .= $player1->name.'已經死亡，'.$player2->name.'還剩下'.$player2->hp.' hp';
+				 break;
+			}
+		}
+		return $result;
+}   
+
+
+function attack1($player1,$player2,$power) { //普A
+		$atk = intval(($player1->atk + mt_rand(1,70))*$power);
+		$random = mt_rand(1,100);
+		if ($random <= $player2->block) {
+        $result = $player2->name.'擋下了攻擊
+';
+        return $result;
+		}
+		$random = mt_rand(1,100);
+		if ($random <= $player2->crit) {
+		$atk = intval($atk*1.5);
+		$player2->hp = $player2->hp - $atk;		
+        $result = $player1->name.'攻擊....命中要害！，'.$player2->name.'受到 '.$atk.' 點傷害
+';
+        return $result;
+		}
+		$player2->hp = $player2->hp - $atk;
+        $result = $player1->name.'攻擊，'.$player2->name.'受到 '.$atk.' 點傷害
+';
+		return $result;
+    }
+
+function action($player1,$player2,$skill_array) {
+	$chance = 1000;
+	foreach ($skill_array as $skill) { //如沒有在範圍內 則概率空間減去
+	$skill_name = $skill[0];
+	$action = $skill[1];
+	$action=intval($action); 
+    $random = mt_rand(1, $chance);
+    if ($random <= $action) {
+        $func = $skill_name;
+		$call_back = $func($player1,$player2);
+        return $call_back;
+    } else {
+        $chance -= $action;
+    }
+}
+if ($chance > 0) {
+	$call_back = attack1($player1,$player2,1);
+	return $call_back;	
+}
+	
+	
+	
+	
+	
+	
+	
+	
+    }
+//todo    spacial(dodge block heal delay attack)  hit user more
 
 
 

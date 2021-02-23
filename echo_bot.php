@@ -18,8 +18,8 @@
 require('LINEBotTiny.php');
 require('lib/botlib.php');
 $con = new SQLite3('sql.db');	
-$channelAccessToken = 'hkwwJ6arj9BfkbEkJgNvaidOYU8T2wlgRq5Xnwlz/ZilKvIX3Z3COb8+lCuLnkdN9JzoWnhzGDIy1yf65cTqchC7UUciH6N++PDZ7xatYmKZce3gEsteRkJ+LaJgdB04t89/1O/w1cDnyilFU=';
-$channelSecret = '1caab0f5aa76577173f2f';
+$channelAccessToken = 'hkwwJ6arj9tIefSfkbEkJgNvaidOYU8T2wlgRq5Xnwlz/ZilKvIX3Z3COb8+lCuLnkdN9JzoWnhzGDIy1yf65cTqchC7UUciH6N++PDZ7xatYmKZce3gEsteRkJ+LaJgdB04t89/1O/w1cDnyilFU=';
+$channelSecret = '1caab0f5aa7677173f2f';
 $client = new LINEBotTiny($channelAccessToken, $channelSecret);
 foreach ($client->parseEvents() as $event) {
 	 $source = 	$event['source'];
@@ -29,6 +29,8 @@ foreach ($client->parseEvents() as $event) {
         case 'message':
               $message = $event['message'];
               $mtext = $message['text'];
+			  $dname = getdisplayname();
+		//	  logger($mtext.'  '.$user.'  '.$dname);
 			  $mtext = str_replace("！","!",$mtext);
               $skey = substr($mtext,1);
 			  
@@ -40,6 +42,7 @@ foreach ($client->parseEvents() as $event) {
 			  if (substr($mtext,0,7) == '清單;') listk($mtext);
 			  if (substr($mtext,0,7) == '刪除;') deletek($mtext);
 			  if (substr($mtext,0,6) == '天氣') weather($mtext);
+			  if (substr($mtext,0,7) == '戰鬥;') battle($mtext);
 			  
 			  if (substr($mtext,0,1) == '!' or substr($mtext,0,) == '！') echom($skey);
               ctrlcv ($mtext); //借來的跟風喊話
